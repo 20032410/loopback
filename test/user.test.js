@@ -7,6 +7,7 @@ require('./support');
 var loopback = require('../');
 var User, AccessToken;
 var async = require('async');
+var extend = require('extend');
 
 describe('User', function() {
   this.timeout(10000);
@@ -1814,34 +1815,25 @@ describe('User', function() {
       beforeEach('create user then login', function createAndLogin(done) {
         async.series([
           function createUserWithOriginalEmail(next) {
-            User.create(
-              { email: currentEmailCredentials.email,
-                password: currentEmailCredentials.password },
-                function(err, userCreated) {
-                  if (err) return next(err);
-                  user = userCreated;
-                  next();
-                });
+            User.create(currentEmailCredentials, function(err, userCreated) {
+              if (err) return next(err);
+              user = userCreated;
+              next();
+            });
           },
           function firstLoginWithOriginalEmail(next) {
-            User.login(
-              { email: currentEmailCredentials.email,
-                password: currentEmailCredentials.password },
-                function(err, accessToken1) {
-                  if (err) return next(err);
-                  assert(accessToken1.userId);
-                  next();
-                });
+            User.login(currentEmailCredentials, function(err, accessToken1) {
+              if (err) return next(err);
+              assert(accessToken1.userId);
+              next();
+            });
           },
           function secondLoginWithOriginalEmail(next) {
-            User.login({
-              email: currentEmailCredentials.email,
-              password: currentEmailCredentials.password },
-              function(err, accessToken2) {
-                if (err) return next(err);
-                assert(accessToken2.userId);
-                next();
-              });
+            User.login(currentEmailCredentials, function(err, accessToken2) {
+              if (err) return next(err);
+              assert(accessToken2.userId);
+              next();
+            });
           },
         ], function(err) {
           done();
@@ -1856,53 +1848,48 @@ describe('User', function() {
       });
 
       it('invalidates sessions when email is changed using `updateAttributes`', function(done) {
-        user.updateAttributes({ 'email': updatedEmailCredentials.email },
-        function(err, userInstance) {
+        user.updateAttributes(
+          { email: updatedEmailCredentials.email },
+          function(err, userInstance) {
+            if (err) return done(err);
+            assertNoAccessTokens(done);
+          });
+      });
+
+      it('invalidates sessions when email is changed using `replaceAttributes`', function(done) {
+        user.replaceAttributes(updatedEmailCredentials, function(err, userInstance) {
           if (err) return done(err);
           assertNoAccessTokens(done);
         });
       });
 
-      it('invalidates sessions when email is changed using `replaceAttributes`', function(done) {
-        user.replaceAttributes(
-          { 'email': updatedEmailCredentials.email,
-            'password': updatedEmailCredentials.password },
-              function(err, userInstance) {
-                if (err) return done(err);
-                assertNoAccessTokens(done);
-              });
-      });
-
       it('invalidates sessions when email is changed using `updateOrCreate`', function(done) {
-        User.updateOrCreate(
-          { id: user.id,
-            email: updatedEmailCredentials.email,
-            password: updatedEmailCredentials.password },
-            function(err, userInstance) {
-              if (err) return done(err);
-              assertNoAccessTokens(done);
-            });
+        User.updateOrCreate({
+          id: user.id,
+          email: updatedEmailCredentials.email,
+          password: updatedEmailCredentials.password,
+        }, function(err, userInstance) {
+          if (err) return done(err);
+          assertNoAccessTokens(done);
+        });
       });
 
       it('invalidates sessions when the email is changed using `replaceById`', function(done) {
-        User.replaceById(user.id,
-          { email: updatedEmailCredentials.email,
-            password: updatedEmailCredentials.password },
-            function(err, userInstance) {
-              if (err) return done(err);
-              assertNoAccessTokens(done);
-            });
+        User.replaceById(user.id, updatedEmailCredentials, function(err, userInstance) {
+          if (err) return done(err);
+          assertNoAccessTokens(done);
+        });
       });
 
       it('invalidates sessions when the email is changed using `replaceOrCreate`', function(done) {
-        User.replaceOrCreate(
-          { id: user.id,
-            email: updatedEmailCredentials.email,
-            password: updatedEmailCredentials.password },
-            function(err, userInstance) {
-              if (err) return done(err);
-              assertNoAccessTokens(done);
-            });
+        User.replaceOrCreate({
+          id: user.id,
+          email: updatedEmailCredentials.email,
+          password: updatedEmailCredentials.password,
+        }, function(err, userInstance) {
+          if (err) return done(err);
+          assertNoAccessTokens(done);
+        });
       });
 
       it('keeps sessions AS IS if firstName is added using `updateAttributes`', function(done) {
@@ -1913,37 +1900,32 @@ describe('User', function() {
       });
 
       it('keeps sessions AS IS if firstName is added using `replaceAttributes`', function(done) {
-        user.replaceAttributes(
-          { 'email': currentEmailCredentials.email,
-            'password': currentEmailCredentials.password,
-            'firstName': 'Candy' },
-            function(err, userInstance) {
-              if (err) return done(err);
-              assertUntouchedTokens(done);
-            });
+        user.replaceAttributes(currentUser({ firstName: 'Candy' }), function(err, userInstance) {
+          if (err) return done(err);
+          assertUntouchedTokens(done);
+        });
       });
 
       it('keeps sessions AS IS if firstName is added using `updateOrCreate`', function(done) {
-        User.updateOrCreate(
-          { id: user.id,
-            'firstName': 'Amir',
-           'email': currentEmailCredentials.email,
-           'password': currentEmailCredentials.password },
-           function(err, userInstance) {
-             if (err) return done(err);
-             assertUntouchedTokens(done);
-           });
+        User.updateOrCreate({
+          id: user.id,
+          firstName: 'Loay',
+          email: currentEmailCredentials.email,
+          password: currentEmailCredentials.password,
+        }, function(err, userInstance) {
+          if (err) return done(err);
+          assertUntouchedTokens(done);
+        });
       });
 
       it('keeps sessions AS IS if firstName is added using `replaceById`', function(done) {
-        User.replaceById(user.id,
-          { 'firstName': 'Miroslav',
-            'email': currentEmailCredentials.email,
-            'password': currentEmailCredentials.password },
-            function(err, userInstance) {
-              if (err) return done(err);
-              assertUntouchedTokens(done);
-            });
+        User.replaceById(
+          user.id,
+          currentUser({ firstName: 'Miroslav' }),
+          function(err, userInstance) {
+            if (err) return done(err);
+            assertUntouchedTokens(done);
+          });
       });
 
       function assertNoAccessTokens(done) {
@@ -1961,32 +1943,33 @@ describe('User', function() {
           done();
         });
       }
+
+      function currentUser(data) {
+        return extend({
+          email: currentEmailCredentials.email,
+          password: currentEmailCredentials.password,
+        }, data);
+      }
     });
 
     describe('sessions valid after creating new users', function() {
       var newUserCreated;
-
+      var newUserCred = { email: 'newuser@example.com', password: 'newpass' };
       it('keeps sessions AS IS if a new user is created using `create`', function(done) {
         async.series([
           function(next) {
-            User.create(
-              { 'email': 'newuser@example.com',
-                'password': 'newpass' },
-                function(err, newUserInstance) {
-                  if (err) return done(err);
-                  newUserCreated = newUserInstance;
-                  next();
-                });
+            User.create(newUserCred, function(err, newUserInstance) {
+              if (err) return done(err);
+              newUserCreated = newUserInstance;
+              next();
+            });
           },
           function(next) {
-            User.login(
-              { 'email': 'newuser@example.com',
-                'password': 'newpass' },
-                function(err, newAccessToken) {
-                  if (err) return done(err);
-                  assert(newAccessToken.id);
-                  assertPreservedToken(next);
-                });
+            User.login(newUserCred, function(err, newAccessToken) {
+              if (err) return done(err);
+              assert(newAccessToken.id);
+              assertPreservedToken(next);
+            });
           },
         ], function(err) {
           done();
@@ -1996,24 +1979,18 @@ describe('User', function() {
       it('keeps sessions AS IS if a new user is created using `updateOrCreate`', function(done) {
         async.series([
           function(next) {
-            User.create(
-              { 'email': 'newuser@example.com',
-                'password': 'newpass' },
-                function(err, newUserInstance2) {
-                  if (err) return done(err);
-                  newUserCreated = newUserInstance2;
-                  next();
-                });
+            User.create(newUserCred, function(err, newUserInstance2) {
+              if (err) return done(err);
+              newUserCreated = newUserInstance2;
+              next();
+            });
           },
           function(next) {
-            User.login(
-              { 'email': 'newuser@example.com',
-                'password': 'newpass' },
-                function(err, newAccessToken2) {
-                  if (err) return done(err);
-                  assert(newAccessToken2.id);
-                  assertPreservedToken(next);
-                });
+            User.login(newUserCred, function(err, newAccessToken2) {
+              if (err) return done(err);
+              assert(newAccessToken2.id);
+              assertPreservedToken(next);
+            });
           },
         ], function(err) {
           done();
@@ -2050,20 +2027,18 @@ describe('User', function() {
           },
           function(next) {
             User.login(
-              { email: 'user1@example.com',
-                password: 'u1pass' },
-                function(err, accessToken1) {
-                  User.login(
-                    { email: 'user2@example.com',
-                      password: 'u2pass' },
-                      function(err, accessToken2) {
-                        User.login({ email: 'user3@example.com', password: 'u3pass' },
-                        function(err, accessToken3) {
-                          if (err) return next(err);
-                          next();
-                        });
-                      });
-                });
+              { email: 'user1@example.com', password: 'u1pass' },
+              function(err, accessToken1) {
+                User.login(
+                  { email: 'user2@example.com', password: 'u2pass' },
+                  function(err, accessToken2) {
+                    User.login({ email: 'user3@example.com', password: 'u3pass' },
+                    function(err, accessToken3) {
+                      if (err) return next(err);
+                      next();
+                    });
+                  });
+              });
           },
           function(next) {
             user2.updateAttribute('email', 'user2Update@b.com', function(err, userInstance) {
@@ -2100,8 +2075,7 @@ describe('User', function() {
         async.series([
           function createSpecialUser(next) {
             User.create(
-              { email: 'special@example.com',
-              password: 'pass1', name: 'Special' },
+              { email: 'special@example.com', password: 'pass1', name: 'Special' },
               function(err, specialInstance) {
                 if (err) return next (err);
                 userSpecial = specialInstance;
@@ -2110,13 +2084,12 @@ describe('User', function() {
           },
           function createNormaluser(next) {
             User.create(
-              { email: 'normal@example.com',
-                password: 'pass2' },
-                function(err, normalInstance) {
-                  if (err) return next (err);
-                  userNormal = normalInstance;
-                  next();
-                });
+              { email: 'normal@example.com', password: 'pass2' },
+              function(err, normalInstance) {
+                if (err) return next (err);
+                userNormal = normalInstance;
+                next();
+              });
           },
           function loginSpecialUser(next) {
             User.login({ email: 'special@example.com', password: 'pass1' }, function(err, ats) {
