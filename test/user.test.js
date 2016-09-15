@@ -7,7 +7,6 @@ require('./support');
 var loopback = require('../');
 var User, AccessToken;
 var async = require('async');
-var extend = require('extend');
 
 describe('User', function() {
   this.timeout(10000);
@@ -1900,7 +1899,11 @@ describe('User', function() {
       });
 
       it('keeps sessions AS IS if firstName is added using `replaceAttributes`', function(done) {
-        user.replaceAttributes(currentUser({ firstName: 'Candy' }), function(err, userInstance) {
+        user.replaceAttributes({
+          email: currentEmailCredentials.email,
+          password: currentEmailCredentials.password,
+          firstName: 'Candy',
+        }, function(err, userInstance) {
           if (err) return done(err);
           assertUntouchedTokens(done);
         });
@@ -1921,8 +1924,11 @@ describe('User', function() {
       it('keeps sessions AS IS if firstName is added using `replaceById`', function(done) {
         User.replaceById(
           user.id,
-          currentUser({ firstName: 'Miroslav' }),
-          function(err, userInstance) {
+          {
+            firstName: 'Miroslav',
+            email: currentEmailCredentials.email,
+            password: currentEmailCredentials.password,
+          }, function(err, userInstance) {
             if (err) return done(err);
             assertUntouchedTokens(done);
           });
@@ -1942,13 +1948,6 @@ describe('User', function() {
           expect(tokens.length).to.equal(2);
           done();
         });
-      }
-
-      function currentUser(data) {
-        return extend({
-          email: currentEmailCredentials.email,
-          password: currentEmailCredentials.password,
-        }, data);
       }
     });
 
